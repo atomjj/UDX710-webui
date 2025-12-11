@@ -212,7 +212,7 @@ make
 
 | 支付宝 | 微信赞赏 |
 |:---:|:---:|
-| ![支付宝](docs/alipay.png) | ![微信](docs/wechat.png) |
+| <img src="docs/alipay.png" width="200" /> | <img src="docs/wechat.png" width="200" /> |
 
 ## 💬 社区讨论
 

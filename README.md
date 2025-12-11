@@ -214,7 +214,7 @@ This project is completely open source and free. If you like this project, you c
 
 | Alipay | WeChat |
 |:---:|:---:|
-| ![Alipay](docs/alipay.png) | ![WeChat](docs/wechat.png) |
+| <img src="docs/alipay.png" width="200" /> | <img src="docs/wechat.png" width="200" /> |
 
 ## 💬 Community
 
