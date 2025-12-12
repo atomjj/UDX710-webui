@@ -7,7 +7,7 @@ import { library, dom } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
 // 导入 Brands 图标 (fab 前缀)
-import { faQq, faGithub } from '@fortawesome/free-brands-svg-icons'
+import { faQq, faGithub, faUsb } from '@fortawesome/free-brands-svg-icons'
 
 // 导入项目使用的所有图标
 import {
@@ -271,7 +271,8 @@ library.add(
   faWrench,
   faExternalLinkAlt,
   faExpand,
-  faCompress
+  faCompress,
+  faUsb
 )
 
 // 启用 DOM 监视器，自动将 <i class="fas fa-xxx"> 转换为 SVG

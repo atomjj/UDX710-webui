@@ -18,6 +18,7 @@
 #include "reboot.h"
 #include "charge.h"
 #include "sms.h"
+#include "usb_mode.h"
 #include "http_utils.h"
 
 /* 嵌入式文件系统声明 (packed_fs.c) */
@@ -188,6 +189,14 @@ static void http_handler(struct mg_connection *c, int ev, void *ev_data) {
         }
         else if (mg_match(hm->uri, mg_str("/api/update/check"), NULL)) {
             handle_update_check(c, hm);
+        }
+        /* USB模式切换 API */
+        else if (mg_match(hm->uri, mg_str("/api/usb/mode"), NULL)) {
+            if (hm->method.len == 3 && memcmp(hm->method.buf, "GET", 3) == 0) {
+                handle_usb_mode_get(c, hm);
+            } else {
+                handle_usb_mode_set(c, hm);
+            }
         }
         /* 未知 API 路由 */
         else {

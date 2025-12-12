@@ -10,6 +10,7 @@ import SystemSettings from './components/SystemSettings.vue'
 import SystemUpdate from './components/SystemUpdate.vue'
 import ATDebug from './components/ATDebug.vue'
 import WebTerminal from './components/WebTerminal.vue'
+import UsbMode from './components/UsbMode.vue'
 import GlobalToast from './components/GlobalToast.vue'
 import GlobalConfirm from './components/GlobalConfirm.vue'
 
@@ -108,6 +109,7 @@ const menuItems = [
   { id: 'update', label: '系统更新', icon: 'fa-cloud-download-alt', color: 'from-violet-500 to-purple-400' },
   { id: 'at', label: 'AT调试', icon: 'fa-terminal', color: 'from-cyan-500 to-teal-400' },
   { id: 'terminal', label: 'Web终端', icon: 'fa-desktop', color: 'from-slate-500 to-gray-400' },
+  { id: 'usb', label: 'USB模式', icon: ['fab', 'usb'], color: 'from-purple-500 to-pink-400' },
   { id: 'settings', label: '系统设置', icon: 'fa-sliders-h', color: 'from-orange-500 to-amber-400' }
 ]
 
@@ -198,7 +200,7 @@ onUnmounted(() => {
                 class="w-9 h-9 md:w-10 md:h-10 rounded-lg flex items-center justify-center transition-all duration-300 flex-shrink-0"
                 :class="activeMenu === item.id ? `bg-gradient-to-br ${item.color} shadow-lg` : 'bg-slate-200 dark:bg-white/5 group-hover:bg-slate-300 dark:group-hover:bg-white/10'"
               >
-                <font-awesome-icon :icon="item.icon.replace('fa-', '')" :class="activeMenu === item.id ? 'text-white' : 'text-slate-600 dark:text-white/60'" />
+                <font-awesome-icon :icon="Array.isArray(item.icon) ? item.icon : item.icon.replace('fa-', '')" :class="activeMenu === item.id ? 'text-white' : 'text-slate-600 dark:text-white/60'" />
               </div>
               <span 
                 v-show="!sidebarCollapsed || isMobile"
@@ -314,6 +316,7 @@ onUnmounted(() => {
           <SystemUpdate v-else-if="activeMenu === 'update'" key="update" />
           <ATDebug v-else-if="activeMenu === 'at'" key="at" />
           <WebTerminal v-else-if="activeMenu === 'terminal'" key="terminal" />
+          <UsbMode v-else-if="activeMenu === 'usb'" key="usb" />
           <SystemSettings v-else-if="activeMenu === 'settings'" key="settings" />
         </Transition>
       </div>

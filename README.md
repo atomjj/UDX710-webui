@@ -61,11 +61,12 @@ Lightweight, efficient, and perfect for resource-constrained embedded devices!
 - **DHCP Settings**: Configure IP range and lease time
 
 ### System Features
-- **System Monitor**: CPU, memory, temperature monitoring
+- **System Monitor**: CPU, memory, temperature monitoring (IMEI/ICCID privacy masking)
 - **SMS Management**: Send and receive SMS messages
 - **LED Control**: Manage device LED indicators
 - **Airplane Mode**: Toggle airplane mode
 - **Power Management**: Battery status, charging control
+- **USB Mode Switch**: Switch between CDC-ECM, CDC-NCM, RNDIS modes (temporary/permanent)
 - **OTA Update**: Over-the-air firmware updates
 - **Factory Reset**: Restore device to default settings
 - **Web Terminal**: Remote shell access
@@ -97,6 +98,7 @@ Lightweight, efficient, and perfect for resource-constrained embedded devices!
 │       ├── led.c           # LED control
 │       ├── charge.c        # Battery management
 │       ├── airplane.c      # Airplane mode
+│       ├── usb_mode.c      # USB mode switch
 │       ├── update.c        # OTA updates
 │       ├── factory_reset.c # Factory reset
 │       └── ...
@@ -160,6 +162,7 @@ The backend uses cross-compilation targeting aarch64-linux-gnu. Ensure your tool
 | `/api/band/current` | GET | Current band info |
 | `/api/led/status` | GET/POST | LED control |
 | `/api/airplane` | GET/POST | Airplane mode |
+| `/api/usb/mode` | GET/POST | USB mode switch (CDC-ECM/CDC-NCM/RNDIS) |
 | `/api/update/check` | GET | Check for updates |
 | `/api/update/install` | POST | Install update |
 | `/api/factory-reset` | POST | Factory reset |

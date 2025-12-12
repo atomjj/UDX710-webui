@@ -11,6 +11,18 @@ const systemInfo = inject('systemInfo')
 const loading = inject('loading')
 const clearingCache = ref(false)
 
+// IMEI/ICCID 显示控制
+const showImei = ref(false)
+const showIccid = ref(false)
+
+// 数据脱敏函数
+function maskValue(value, showFull) {
+  if (!value || value === 'N/A') return 'N/A'
+  if (showFull) return value
+  if (value.length <= 8) return value
+  return value.slice(0, 4) + '****' + value.slice(-4)
+}
+
 // 当前连接频段信息
 const currentBand = ref(null)
 const bandLoading = ref(false)
@@ -414,14 +426,6 @@ async function handleClearCache() {
           
           <div class="space-y-3">
             <div class="group p-3 bg-slate-100 dark:bg-white/5 rounded-xl hover:bg-slate-200 dark:hover:bg-white/10 transition-all flex justify-between items-center">
-              <span class="text-slate-600 dark:text-white/60 text-sm"><i class="fas fa-fingerprint mr-2 text-blue-400"></i>IMEI</span>
-              <span class="text-slate-900 dark:text-white font-mono text-sm">{{ systemInfo?.imei || 'N/A' }}</span>
-            </div>
-            <div class="group p-3 bg-slate-100 dark:bg-white/5 rounded-xl hover:bg-slate-200 dark:hover:bg-white/10 transition-all flex justify-between items-center">
-              <span class="text-slate-600 dark:text-white/60 text-sm"><i class="fas fa-sim-card mr-2 text-green-400"></i>ICCID</span>
-              <span class="text-slate-900 dark:text-white font-mono text-sm">{{ systemInfo?.iccid || 'N/A' }}</span>
-            </div>
-            <div class="group p-3 bg-slate-100 dark:bg-white/5 rounded-xl hover:bg-slate-200 dark:hover:bg-white/10 transition-all flex justify-between items-center">
               <span class="text-slate-600 dark:text-white/60 text-sm"><i class="fas fa-building mr-2 text-purple-400"></i>运营商</span>
               <span class="text-slate-900 dark:text-white font-bold">{{ systemInfo?.carrier || 'N/A' }}</span>
             </div>
@@ -448,6 +452,20 @@ async function handleClearCache() {
                   <span class="text-green-600 dark:text-green-400 font-bold"><i class="fas fa-arrow-down text-xs mr-1"></i>{{ formatRate(systemInfo?.downlink_rate) }}</span>
                   <span class="text-blue-600 dark:text-blue-400 font-bold"><i class="fas fa-arrow-up text-xs mr-1"></i>{{ formatRate(systemInfo?.uplink_rate) }}</span>
                 </div>
+              </div>
+            </div>
+            <div @click="showImei = !showImei" class="group p-3 bg-slate-100 dark:bg-white/5 rounded-xl hover:bg-slate-200 dark:hover:bg-white/10 transition-all flex justify-between items-center cursor-pointer select-none">
+              <span class="text-slate-600 dark:text-white/60 text-sm"><i class="fas fa-fingerprint mr-2 text-blue-400"></i>IMEI</span>
+              <div class="flex items-center space-x-2">
+                <span class="text-slate-900 dark:text-white font-mono text-sm transition-all duration-300">{{ maskValue(systemInfo?.imei, showImei) }}</span>
+                <font-awesome-icon :icon="showImei ? 'eye' : 'eye-slash'" :class="showImei ? 'text-blue-400' : 'text-slate-400'" class="text-xs transition-all duration-300" />
+              </div>
+            </div>
+            <div @click="showIccid = !showIccid" class="group p-3 bg-slate-100 dark:bg-white/5 rounded-xl hover:bg-slate-200 dark:hover:bg-white/10 transition-all flex justify-between items-center cursor-pointer select-none">
+              <span class="text-slate-600 dark:text-white/60 text-sm"><i class="fas fa-sim-card mr-2 text-green-400"></i>ICCID</span>
+              <div class="flex items-center space-x-2">
+                <span class="text-slate-900 dark:text-white font-mono text-sm transition-all duration-300">{{ maskValue(systemInfo?.iccid, showIccid) }}</span>
+                <font-awesome-icon :icon="showIccid ? 'eye' : 'eye-slash'" :class="showIccid ? 'text-green-400' : 'text-slate-400'" class="text-xs transition-all duration-300" />
               </div>
             </div>
           </div>

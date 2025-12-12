@@ -252,8 +252,7 @@ const char *get_carrier_from_imsi(const char *imsi) {
         if (strcmp(mnc, "03") == 0 || strcmp(mnc, "05") == 0 || strcmp(mnc, "11") == 0) {
             return "中国电信";
         }
-        if (strcmp(mnc, "12") == 0 || strcmp(mnc, "13") == 0 ||
-            strcmp(mnc, "14") == 0 || strcmp(mnc, "15") == 0) {
+        if (strcmp(mnc, "15") == 0) {
             return "中国广电";
         }
     }

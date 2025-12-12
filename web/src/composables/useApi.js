@@ -214,6 +214,21 @@ export async function executeAT(command) {
   })
 }
 
+// ==================== USB模式切换API ====================
+
+// 获取当前USB模式
+export async function getUsbMode() {
+  return request('/api/usb/mode')
+}
+
+// 设置USB模式
+export async function setUsbMode(mode, permanent = false) {
+  return request('/api/usb/mode', {
+    method: 'POST',
+    body: JSON.stringify({ mode, permanent })
+  })
+}
+
 // ==================== 通用API封装 ====================
 
 // 返回一个包含get/post方法的对象，用于组件中调用
