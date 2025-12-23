@@ -21,6 +21,9 @@ extern "C" {
 /* Token有效期（秒） - 24小时 */
 #define AUTH_TOKEN_EXPIRE_SECONDS (24 * 60 * 60)
 
+/* 最大同时登录Token数量 */
+#define AUTH_MAX_TOKENS 5
+
 /**
  * 初始化认证模块
  * 如果数据库中没有密码，则设置默认密码

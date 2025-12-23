@@ -1,6 +1,6 @@
 /**
  * @file auth.c
- * @brief 后台认证模块实现
+ * @brief 后台认证模块实现 - 支持多Token
  */
 
 #include <stdio.h>
@@ -15,15 +15,46 @@
 /* 外部函数声明 - 来自sms.c */
 extern int config_get(const char *key, char *value, size_t value_size);
 extern int config_set(const char *key, const char *value);
-extern int config_get_int(const char *key, int default_val);
-extern int config_set_int(const char *key, int value);
-extern long long config_get_ll(const char *key, long long default_val);
-extern int config_set_ll(const char *key, long long value);
+extern const char *get_db_path(void);
+
+/* 外部函数 - 执行命令 */
+extern int run_command(char *output, size_t output_size, const char *cmd, ...);
 
 /* 配置键名 */
 #define KEY_PASSWORD_HASH   "auth_password_hash"
-#define KEY_TOKEN           "auth_token"
-#define KEY_TOKEN_EXPIRE    "auth_token_expire"
+
+/**
+ * 执行Token相关的SQL（内部使用）
+ */
+static int token_db_execute(const char *sql)
+{
+    char cmd[1024];
+    char output[256];
+    
+    snprintf(cmd, sizeof(cmd), "sqlite3 '%s' \"%s\"", get_db_path(), sql);
+    return run_command(output, sizeof(output), "sh", "-c", cmd, NULL);
+}
+
+/**
+ * 查询Token数量
+ */
+static int token_db_query_int(const char *sql)
+{
+    char cmd[1024];
+    char output[256] = {0};
+    
+    snprintf(cmd, sizeof(cmd), "sqlite3 '%s' \"%s\"", get_db_path(), sql);
+    if (run_command(output, sizeof(output), "sh", "-c", cmd, NULL) != 0) {
+        return -1;
+    }
+    
+    /* 去除换行符 */
+    size_t len = strlen(output);
+    if (len > 0 && output[len-1] == '\n') output[len-1] = '\0';
+    
+    return atoi(output);
+}
+
 
 /**
  * 生成随机Token
@@ -77,11 +108,42 @@ static int verify_password(const char *password)
     return (strcmp(stored_hash, input_hash) == 0) ? 0 : -1;
 }
 
+/**
+ * 清理过期Token
+ */
+static int cleanup_expired_tokens(void)
+{
+    char sql[256];
+    long long now = (long long)time(NULL);
+    
+    snprintf(sql, sizeof(sql),
+        "DELETE FROM auth_tokens WHERE expire_time <= %lld;", now);
+    
+    return token_db_execute(sql);
+}
+
+/**
+ * 获取当前Token数量
+ */
+static int get_token_count(void)
+{
+    return token_db_query_int("SELECT COUNT(*) FROM auth_tokens;");
+}
+
+/**
+ * 删除最早的Token
+ */
+static int delete_oldest_token(void)
+{
+    return token_db_execute(
+        "DELETE FROM auth_tokens WHERE id = "
+        "(SELECT id FROM auth_tokens ORDER BY created_at ASC LIMIT 1);");
+}
+
+
 int auth_init(void)
 {
     char hash[SHA256_HEX_SIZE] = {0};
-    char token[AUTH_TOKEN_SIZE] = {0};
-    long long expire_time;
     
     printf("[AUTH] 初始化认证模块\n");
     
@@ -97,14 +159,7 @@ int auth_init(void)
     }
     
     /* 启动时清理过期Token */
-    if (config_get(KEY_TOKEN, token, sizeof(token)) == 0 && strlen(token) > 0) {
-        expire_time = config_get_ll(KEY_TOKEN_EXPIRE, 0);
-        if (expire_time == 0 || (long long)time(NULL) > expire_time) {
-            printf("[AUTH] 清理过期Token\n");
-            config_set(KEY_TOKEN, "");
-            config_set_ll(KEY_TOKEN_EXPIRE, 0);
-        }
-    }
+    cleanup_expired_tokens();
     
     printf("[AUTH] 认证模块初始化完成\n");
     return 0;
@@ -112,6 +167,10 @@ int auth_init(void)
 
 int auth_login(const char *password, char *token, size_t token_size)
 {
+    char sql[512];
+    long long now, expire_time;
+    int count;
+    
     if (!password || !token || token_size < AUTH_TOKEN_SIZE) {
         return -2;
     }
@@ -124,59 +183,75 @@ int auth_login(const char *password, char *token, size_t token_size)
         return -1;
     }
     
+    /* 先清理过期Token */
+    cleanup_expired_tokens();
+    
+    /* 检查Token数量，超过限制则删除最早的 */
+    count = get_token_count();
+    while (count >= AUTH_MAX_TOKENS && count > 0) {
+        printf("[AUTH] Token数量已达上限(%d)，删除最早的Token\n", AUTH_MAX_TOKENS);
+        delete_oldest_token();
+        count--;
+    }
+    
     /* 生成新Token */
     if (generate_token(token, token_size) != 0) {
         printf("[AUTH] 生成Token失败\n");
         return -2;
     }
     
-    /* 保存Token */
-    if (config_set(KEY_TOKEN, token) != 0) {
+    /* 计算过期时间 */
+    now = (long long)time(NULL);
+    expire_time = now + AUTH_TOKEN_EXPIRE_SECONDS;
+    
+    /* 插入新Token */
+    snprintf(sql, sizeof(sql),
+        "INSERT INTO auth_tokens (token, expire_time, created_at) VALUES ('%s', %lld, %lld);",
+        token, expire_time, now);
+    
+    if (token_db_execute(sql) != 0) {
         printf("[AUTH] 保存Token失败\n");
         return -2;
     }
     
-    /* 设置过期时间 */
-    long long expire_time = (long long)time(NULL) + AUTH_TOKEN_EXPIRE_SECONDS;
-    if (config_set_ll(KEY_TOKEN_EXPIRE, expire_time) != 0) {
-        printf("[AUTH] 设置过期时间失败\n");
-        return -2;
-    }
-    
-    printf("[AUTH] 登录成功，Token有效期: %d秒\n", AUTH_TOKEN_EXPIRE_SECONDS);
+    printf("[AUTH] 登录成功，Token有效期: %d秒，当前Token数: %d\n", 
+           AUTH_TOKEN_EXPIRE_SECONDS, get_token_count());
     return 0;
 }
 
+
 int auth_verify_token(const char *token)
 {
-    char stored_token[AUTH_TOKEN_SIZE] = {0};
-    long long expire_time;
+    char cmd[1024];
+    char output[256] = {0};
+    long long now;
     
     if (!token || strlen(token) == 0) {
         return -1;
     }
     
-    /* 获取存储的Token */
-    if (config_get(KEY_TOKEN, stored_token, sizeof(stored_token)) != 0) {
-        return -1;  /* 无Token */
+    now = (long long)time(NULL);
+    
+    /* 查询Token是否存在且未过期 */
+    snprintf(cmd, sizeof(cmd),
+        "sqlite3 '%s' \"SELECT COUNT(*) FROM auth_tokens WHERE token='%s' AND expire_time > %lld;\"",
+        get_db_path(), token, now);
+    
+    if (run_command(output, sizeof(output), "sh", "-c", cmd, NULL) != 0) {
+        return -1;
     }
     
-    /* 比较Token */
-    if (strcmp(token, stored_token) != 0) {
-        return -1;  /* Token不匹配 */
+    /* 去除换行符 */
+    size_t len = strlen(output);
+    if (len > 0 && output[len-1] == '\n') output[len-1] = '\0';
+    
+    if (atoi(output) > 0) {
+        return 0;  /* Token有效 */
     }
     
-    /* 检查过期时间 */
-    expire_time = config_get_ll(KEY_TOKEN_EXPIRE, 0);
-    if (expire_time == 0 || (long long)time(NULL) > expire_time) {
-        printf("[AUTH] Token已过期，自动清除\n");
-        /* 清除过期Token */
-        config_set(KEY_TOKEN, "");
-        config_set_ll(KEY_TOKEN_EXPIRE, 0);
-        return -1;  /* Token已过期 */
-    }
-    
-    return 0;
+    /* Token无效或已过期，尝试清理 */
+    cleanup_expired_tokens();
+    return -1;
 }
 
 int auth_change_password(const char *old_password, const char *new_password)
@@ -209,35 +284,28 @@ int auth_change_password(const char *old_password, const char *new_password)
         return -2;
     }
     
-    /* 清除当前Token，强制重新登录 */
-    config_set(KEY_TOKEN, "");
-    config_set_ll(KEY_TOKEN_EXPIRE, 0);
+    /* 清除所有Token，强制所有设备重新登录 */
+    token_db_execute("DELETE FROM auth_tokens;");
     
-    printf("[AUTH] 密码修改成功\n");
+    printf("[AUTH] 密码修改成功，所有设备需重新登录\n");
     return 0;
 }
 
 int auth_logout(const char *token)
 {
-    char stored_token[AUTH_TOKEN_SIZE] = {0};
+    char sql[256];
     
-    if (!token) {
+    if (!token || strlen(token) == 0) {
         return -1;
     }
     
-    /* 获取存储的Token */
-    if (config_get(KEY_TOKEN, stored_token, sizeof(stored_token)) != 0) {
+    /* 只删除指定Token，不影响其他设备 */
+    snprintf(sql, sizeof(sql),
+        "DELETE FROM auth_tokens WHERE token='%s';", token);
+    
+    if (token_db_execute(sql) != 0) {
         return -1;
     }
-    
-    /* 验证Token */
-    if (strcmp(token, stored_token) != 0) {
-        return -1;
-    }
-    
-    /* 清除Token */
-    config_set(KEY_TOKEN, "");
-    config_set_ll(KEY_TOKEN_EXPIRE, 0);
     
     printf("[AUTH] 登出成功\n");
     return 0;
@@ -245,8 +313,7 @@ int auth_logout(const char *token)
 
 int auth_get_status(int *logged_in)
 {
-    char token[AUTH_TOKEN_SIZE] = {0};
-    long long expire_time;
+    int count;
     
     if (!logged_in) {
         return -1;
@@ -254,20 +321,13 @@ int auth_get_status(int *logged_in)
     
     *logged_in = 0;
     
-    /* 检查是否有有效Token */
-    if (config_get(KEY_TOKEN, token, sizeof(token)) != 0 || strlen(token) == 0) {
-        return 0;
-    }
+    /* 先清理过期Token */
+    cleanup_expired_tokens();
     
-    /* 检查过期时间 */
-    expire_time = config_get_ll(KEY_TOKEN_EXPIRE, 0);
-    if (expire_time > 0 && (long long)time(NULL) <= expire_time) {
+    /* 检查是否有有效Token */
+    count = get_token_count();
+    if (count > 0) {
         *logged_in = 1;
-    } else if (strlen(token) > 0) {
-        /* Token已过期，自动清除 */
-        printf("[AUTH] 检测到过期Token，自动清除\n");
-        config_set(KEY_TOKEN, "");
-        config_set_ll(KEY_TOKEN_EXPIRE, 0);
     }
     
     return 0;

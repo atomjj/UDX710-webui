@@ -347,14 +347,14 @@ int http_server_start(const char *port) {
     /* 初始化充电控制 */
     init_charge();
 
+    /* 初始化短信模块（必须在auth_init之前，因为auth依赖数据库） */
+    if (sms_init("6677.db") != 0) {
+        printf("警告: 短信模块初始化失败\n");
+    }
+
     /* 初始化认证模块 */
     if (auth_init() != 0) {
         printf("警告: 认证模块初始化失败\n");
-    }
-
-    /* 初始化短信模块 */
-    if (sms_init("6677.db") != 0) {
-        printf("警告: 短信模块初始化失败\n");
     }
 
     /* 初始化 mongoose */

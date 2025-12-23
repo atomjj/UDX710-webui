@@ -157,6 +157,12 @@ static int db_init(void) {
         "CREATE TABLE IF NOT EXISTS config ("
         "key TEXT PRIMARY KEY,"
         "value TEXT"
+        ");"
+        "CREATE TABLE IF NOT EXISTS auth_tokens ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "token TEXT UNIQUE NOT NULL,"
+        "expire_time INTEGER NOT NULL,"
+        "created_at INTEGER NOT NULL"
         ");");
     
     /* 为旧数据库添加新字段（忽略错误，字段可能已存在） */
@@ -1239,6 +1245,11 @@ int sms_set_max_sent_count(int count) {
 
 
 /* ==================== 通用配置函数 ==================== */
+
+/* 获取数据库路径 */
+const char *get_db_path(void) {
+    return g_db_path;
+}
 
 /* 获取通用配置值 */
 int config_get(const char *key, char *value, size_t value_size) {
